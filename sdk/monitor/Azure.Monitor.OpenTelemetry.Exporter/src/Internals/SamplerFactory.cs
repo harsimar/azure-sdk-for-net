@@ -71,7 +71,6 @@ internal static class SamplerFactory
 
     private static Sampler CreateSamplerFromOptions(AzureMonitorExporterOptions options)
     {
-        // Precedence: TracesPerSecond > SamplingRatio > Default
         if (options.TracesPerSecond.HasValue)
         {
             return new RateLimitedSampler(options.TracesPerSecond.Value);
