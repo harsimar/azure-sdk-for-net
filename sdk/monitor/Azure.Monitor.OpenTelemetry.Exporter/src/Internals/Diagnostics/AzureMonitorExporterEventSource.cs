@@ -458,5 +458,8 @@ namespace Azure.Monitor.OpenTelemetry.Exporter.Internals.Diagnostics
 
         [Event(45, Message = "The {0} method received an AzureMonitorExporterOptions with EnableLiveMetrics set to true, which isn't supported. Note that LiveMetrics is only available via the UseAzureMonitorExporter API.", Level = EventLevel.Warning)]
         public void LiveMetricsNotSupported(string methodName) => WriteEvent(45, methodName);
+
+        [Event(46, Message = "Unsupported sampler environment variable configuration. OTEL_TRACES_SAMPLER='{0}', OTEL_TRACES_SAMPLER_ARG='{1}'. Falling back to configured sampling options or default ApplicationInsightsSampler.", Level = EventLevel.Warning)]
+        public void UnsupportedSamplerEnvironmentVariable(string samplerName, string samplerArg) => WriteEvent(46, samplerName ?? "null", samplerArg ?? "null");
     }
 }

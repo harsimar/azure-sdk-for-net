@@ -160,6 +160,9 @@ namespace Azure.Monitor.OpenTelemetry.AspNetCore
                     {
                         options.ConnectionString = config[EnvironmentVariableConstants.APPLICATIONINSIGHTS_CONNECTION_STRING];
                     }
+
+                    // Apply sampling configuration from environment variables if not already set
+                    ConfigureSamplingFromEnvironment(options, config);
                 });
 
             builder.UseAzureMonitorExporter();
@@ -189,6 +192,61 @@ namespace Azure.Monitor.OpenTelemetry.AspNetCore
             return Environment.Version.Major >= 8 ?
                 meterProviderBuilder.AddMeter("Microsoft.AspNetCore.Hosting").AddMeter("System.Net.Http")
                 : meterProviderBuilder.AddAspNetCoreInstrumentation().AddHttpClientInstrumentation();
+        }
+
+        private static void ConfigureSamplingFromEnvironment(AzureMonitorOptions options, IConfiguration config)
+        {
+            var envSampler = config[EnvironmentVariableConstants.OTEL_TRACES_SAMPLER];
+            var envSamplerArg = config[EnvironmentVariableConstants.OTEL_TRACES_SAMPLER_ARG];
+
+            if (string.IsNullOrEmpty(envSampler))
+            {
+                return; // No environment variable configuration
+            }
+
+            // Parse environment variables and update options if valid
+            switch (envSampler?.ToLowerInvariant())
+            {
+                case "microsoft.rate_limited":
+                    if (TryParseDouble(envSamplerArg, out var tracesPerSecond))
+                    {
+                        options.TracesPerSecond = tracesPerSecond;
+                        // Clear SamplingRatio to ensure precedence
+                        options.SamplingRatio = 1.0F;
+                    }
+                    else
+                    {
+                        // Log warning - invalid argument for rate limited sampler
+                        AzureMonitorAspNetCoreEventSource.Log.UnsupportedSamplerEnvironmentVariable(envSampler, envSamplerArg);
+                    }
+                    break;
+
+                case "microsoft.fixed_percentage":
+                    if (TryParseDouble(envSamplerArg, out var samplingRatio) && samplingRatio >= 0.0 && samplingRatio <= 1.0)
+                    {
+                        options.SamplingRatio = (float)samplingRatio;
+                        // Clear TracesPerSecond to ensure precedence
+                        options.TracesPerSecond = null;
+                    }
+                    else
+                    {
+                        // Log warning - invalid argument for fixed percentage sampler
+                        AzureMonitorAspNetCoreEventSource.Log.UnsupportedSamplerEnvironmentVariable(envSampler, envSamplerArg);
+                    }
+                    break;
+
+                default:
+                    // Log warning - unsupported sampler type
+                    AzureMonitorAspNetCoreEventSource.Log.UnsupportedSamplerEnvironmentVariable(envSampler, envSamplerArg);
+                    break;
+            }
+        }
+
+        private static bool TryParseDouble(string value, out double result)
+        {
+            result = 0.0;
+            return !string.IsNullOrEmpty(value) && 
+                   double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out result);
         }
     }
 }

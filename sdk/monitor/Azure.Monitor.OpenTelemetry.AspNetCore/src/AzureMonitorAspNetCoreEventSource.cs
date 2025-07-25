@@ -127,5 +127,8 @@ namespace Azure.Monitor.OpenTelemetry.AspNetCore
 
         [Event(13, Message = "Failed to get Type version while initialize SDK version due to an exception. Not user actionable. Type: {0}. {1}", Level = EventLevel.Warning)]
         public void ErrorInitializingPartOfSdkVersion(string typeName, string exceptionMessage) => WriteEvent(13, typeName, exceptionMessage);
+
+        [Event(14, Message = "Unsupported sampler environment variable configuration. OTEL_TRACES_SAMPLER='{0}', OTEL_TRACES_SAMPLER_ARG='{1}'. Falling back to configured sampling options or default ApplicationInsightsSampler.", Level = EventLevel.Warning)]
+        public void UnsupportedSamplerEnvironmentVariable(string samplerName, string samplerArg) => WriteEvent(14, samplerName ?? "null", samplerArg ?? "null");
     }
 }
