@@ -45,7 +45,6 @@ public class RateLimitedSamplerTests
     [Fact]
     public void RateLimitedSamplerBasicSampling()
     {
-        // For now, test the basic functionality with the placeholder implementation
         var sampler = new RateLimitedSampler(5.0);
         
         byte[] testBytes = new byte[] 
@@ -61,7 +60,78 @@ public class RateLimitedSamplerTests
 
         var result = sampler.ShouldSample(testParams);
         
-        // With the placeholder implementation, it should always sample
+        // Result should be deterministic for the same trace ID
+        Assert.True(result.Decision == SamplingDecision.RecordAndSample || result.Decision == SamplingDecision.RecordOnly);
+        
+        // Same trace ID should always give same result
+        var result2 = sampler.ShouldSample(testParams);
+        Assert.Equal(result.Decision, result2.Decision);
+    }
+
+    [Fact]
+    public void RateLimitedSamplerZeroRate()
+    {
+        var sampler = new RateLimitedSampler(0.0);
+        
+        byte[] testBytes = new byte[] 
+        {
+            0x0F, 0x1F, 0x2F, 0x3F,
+            0x4F, 0x5F, 0x6F, 0x7F,
+            0x8F, 0x9F, 0xAF, 0xBF,
+            0xCF, 0xDF, 0xEF, 0xFF,
+        };
+        ActivityTraceId testId = ActivityTraceId.CreateFromBytes(testBytes);
+        ActivityContext parentContext = default;
+        SamplingParameters testParams = new SamplingParameters(parentContext, testId, "TestActivity", ActivityKind.Internal);
+
+        var result = sampler.ShouldSample(testParams);
+        
+        // With zero rate, should never sample
+        Assert.Equal(SamplingDecision.RecordOnly, result.Decision);
+    }
+
+    [Fact]
+    public void RateLimitedSamplerHighRate()
+    {
+        var sampler = new RateLimitedSampler(2000.0);
+        
+        byte[] testBytes = new byte[] 
+        {
+            0x0F, 0x1F, 0x2F, 0x3F,
+            0x4F, 0x5F, 0x6F, 0x7F,
+            0x8F, 0x9F, 0xAF, 0xBF,
+            0xCF, 0xDF, 0xEF, 0xFF,
+        };
+        ActivityTraceId testId = ActivityTraceId.CreateFromBytes(testBytes);
+        ActivityContext parentContext = default;
+        SamplingParameters testParams = new SamplingParameters(parentContext, testId, "TestActivity", ActivityKind.Internal);
+
+        var result = sampler.ShouldSample(testParams);
+        
+        // With very high rate, should always sample
         Assert.Equal(SamplingDecision.RecordAndSample, result.Decision);
+    }
+
+    [Fact]
+    public void RateLimitedSamplerConsistentSampling()
+    {
+        var sampler = new RateLimitedSampler(0.5);
+        
+        // Test multiple trace IDs to ensure consistency
+        for (int i = 0; i < 10; i++)
+        {
+            byte[] testBytes = new byte[16];
+            testBytes[0] = (byte)i;
+            
+            ActivityTraceId testId = ActivityTraceId.CreateFromBytes(testBytes);
+            ActivityContext parentContext = default;
+            SamplingParameters testParams = new SamplingParameters(parentContext, testId, "TestActivity", ActivityKind.Internal);
+
+            var result1 = sampler.ShouldSample(testParams);
+            var result2 = sampler.ShouldSample(testParams);
+            
+            // Same trace ID should always give same result
+            Assert.Equal(result1.Decision, result2.Decision);
+        }
     }
 }
