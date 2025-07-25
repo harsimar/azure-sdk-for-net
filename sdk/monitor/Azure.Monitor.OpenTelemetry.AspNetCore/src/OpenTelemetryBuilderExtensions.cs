@@ -211,8 +211,7 @@ namespace Azure.Monitor.OpenTelemetry.AspNetCore
                     if (TryParseDouble(envSamplerArg, out var tracesPerSecond))
                     {
                         options.TracesPerSecond = tracesPerSecond;
-                        // Clear SamplingRatio to ensure precedence
-                        options.SamplingRatio = 1.0F;
+                        // Don't modify SamplingRatio - let the precedence rules in SamplerFactory handle it
                     }
                     else
                     {
@@ -225,8 +224,7 @@ namespace Azure.Monitor.OpenTelemetry.AspNetCore
                     if (TryParseDouble(envSamplerArg, out var samplingRatio) && samplingRatio >= 0.0 && samplingRatio <= 1.0)
                     {
                         options.SamplingRatio = (float)samplingRatio;
-                        // Clear TracesPerSecond to ensure precedence
-                        options.TracesPerSecond = null;
+                        // Don't modify TracesPerSecond - let the precedence rules in SamplerFactory handle it
                     }
                     else
                     {
